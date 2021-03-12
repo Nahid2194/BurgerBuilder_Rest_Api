@@ -1,5 +1,5 @@
 from rest_framework.serializers import ModelSerializer
-from BurgerApi.models import UserProfile
+from BurgerApi.models import UserProfile, CustomerDetails, Ingredient, Order
 
 
 class UserProfileSerializer(ModelSerializer):
@@ -20,3 +20,46 @@ class UserProfileSerializer(ModelSerializer):
             password=validated_data["password"],
         )
         return user
+
+
+class CustomerDetailsSerializer(ModelSerializer):
+    class Meta:
+        model = CustomerDetails
+        exclude = [
+            "id",
+        ]
+
+
+class IngredientSerializer(ModelSerializer):
+    class Meta:
+        model = Ingredient
+        exclude = [
+            "id",
+        ]
+
+
+class OrderSerializer(ModelSerializer):
+    ingredients = IngredientSerializer()
+    customer = CustomerDetailsSerializer()
+
+    class Meta:
+        model = Order
+        fields = "__all__"
+
+    def create(self, validated_data):
+        ingredient_data = validated_data.pop("ingredients")
+        customer_data = validated_data.pop("customer")
+        ingredients = IngredientSerializer.create(
+            IngredientSerializer(), validated_data=ingredient_data
+        )
+        customer = CustomerDetailsSerializer.create(
+            CustomerDetailsSerializer(), validated_data=customer_data
+        )
+        order, created = Order.objects.update_or_create(
+            ingredients=ingredients,
+            customer=customer,
+            price=validated_data.pop("price"),
+            orderTime=validated_data.pop("orderTime"),
+            user=validated_data.pop("user"),
+        )
+        return order
